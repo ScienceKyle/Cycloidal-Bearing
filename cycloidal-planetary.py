@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 from types import SimpleNamespace
 
-detail = 4 #higher = more facets
 
 def generate_cycloid(N=10,base_r=.5, hypo_ratio=1):
   epi_circle = np.linspace(-np.pi, np.pi, 720,endpoint=False)
@@ -22,7 +21,7 @@ def generate_cycloid(N=10,base_r=.5, hypo_ratio=1):
   xh,yh = rot(xh+base_r-hypo_r,yh,theta)
   profile_x = np.concatenate([xe, xh])
   profile_y = np.concatenate([ye, yh])
-  x_smooth , y_smooth = smooth_path(profile_x,profile_y,40)
+  x_smooth , y_smooth = smooth_path(profile_x,profile_y,int(360/N))
   
   x = []
   y = []
@@ -33,7 +32,7 @@ def generate_cycloid(N=10,base_r=.5, hypo_ratio=1):
     y.extend(tmp_y)
   x = np.array(x)
   y = np.array(y)
-  x_smooth , y_smooth = smooth_path(x,y,detail*90)
+  x_smooth , y_smooth = smooth_path(x,y,180)
   return SimpleNamespace(
         x=x, y=y, r=base_r,
         N=N, h=epi_r+hypo_r
@@ -67,7 +66,7 @@ def polar(x, y):
 
 def generate_helix(gear, height=1, helix=np.radians(35), radius=None,reverse=False):
     profile = np.column_stack((gear.x, gear.y))
-    n_layers = (detail+2)*10+1
+    n_layers = 51
     dz = height / (n_layers - 1)
 
     # Generate helical layers
@@ -91,13 +90,25 @@ def generate_helix(gear, height=1, helix=np.radians(35), radius=None,reverse=Fal
     # Create cylinder circles at bottom and top
     if radius is None:
         radius = np.max(np.linalg.norm(profile, axis=1)) * 1.1  # Slightly outside if not given
+    helix_rad=np.radians(helix)
+    # Align bottom circle with first layer rotation
+    th_start = thetas[0]
+    th_end = thetas[-1]
 
     angles = np.linspace(0, 2*np.pi, n_points, endpoint=False)
-    circle_xy = np.column_stack((radius*np.cos(angles), radius*np.sin(angles)))
+    circle = np.column_stack((radius * np.cos(angles), radius * np.sin(angles)))
 
-    bottom_circle = np.hstack((circle_xy, np.zeros((n_points, 1))))           # z=0
-    top_circle = np.hstack((circle_xy, np.full((n_points, 1), dz*(n_layers-1))))  # z=height
-
+# Rotate bottom and top circles to align with helical twist
+    circle_bottom = np.column_stack((
+      circle[:, 0]*np.cos(th_start) - circle[:, 1]*np.sin(th_start),
+      circle[:, 0]*np.sin(th_start) + circle[:, 1]*np.cos(th_start)
+    ))
+    circle_top = np.column_stack((
+      circle[:, 0]*np.cos(th_end) - circle[:, 1]*np.sin(th_end),
+      circle[:, 0]*np.sin(th_end) + circle[:, 1]*np.cos(th_end)
+    ))
+    bottom_circle = np.hstack((circle_bottom, np.zeros((n_points, 1))))
+    top_circle = np.hstack((circle_top, np.full((n_points, 1), dz*(n_layers-1))))
     vertices = np.vstack((vertices, bottom_circle, top_circle))
 
     # Create faces
@@ -224,7 +235,7 @@ def generate_conj(planet, ratio, internal=False,clearance=.02):
         r_vals[i] = np.max(candidates) + clearance if internal else np.min(candidates) - clearance
     # Convert to numpy arrays
     x,y = cart(r_vals,circle)
-    x_smooth , y_smooth = smooth_path(x,y,detail*180)
+    x_smooth , y_smooth = smooth_path(x,y,360)
     return SimpleNamespace(
         x=x, y=y, r=r)
  
@@ -333,4 +344,4 @@ def generate_plantery(id=2.5,od=4,height=.75,helix=30,save='cycloid_bearing'):
     plt.savefig(save+'.png', dpi=300)
   return
     
-generate_plantery(id=2,od=4,height=.75,helix=30,save='demo')
+generate_plantery(id=2,od=4,height=.75,helix=25,save='demo')

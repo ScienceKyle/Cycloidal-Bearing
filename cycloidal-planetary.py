@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 from types import SimpleNamespace
 
-detail = 10 #higher = more facets
+detail = 4 #higher = more facets
 
 def generate_cycloid(N=10,base_r=.5, hypo_ratio=1):
   epi_circle = np.linspace(-np.pi, np.pi, 720,endpoint=False)
@@ -175,7 +175,7 @@ def save_stl(filename, vertices, faces):
     stl_mesh.save(filename)
     print(f"saved {filename}")
 
-def generate_conj(planet, ratio, internal=False,clearance=.005):
+def generate_conj(planet, ratio, internal=False,clearance=.02):
     base_r = planet.r
     r = base_r * ratio
     circle = np.linspace(0, 2 * np.pi, 1080)
@@ -235,7 +235,7 @@ def generate_plantery(id=2.5,od=4,height=.75,helix=30,save='cycloid_bearing'):
   N_s = 28
   num_p = 12
   best_r = 1/3
-  gap = .8*(od-id)/2
+  gap = .6*(od-id)/2
   orbit_r = (od+id)/4
   orbit_D = 2*np.pi*orbit_r
   thresh = .001
@@ -333,4 +333,4 @@ def generate_plantery(id=2.5,od=4,height=.75,helix=30,save='cycloid_bearing'):
     plt.savefig(save+'.png', dpi=300)
   return
     
-generate_plantery(id=2.5,od=4,height=.75,helix=30,save='demo')
+generate_plantery(id=2,od=4,height=.75,helix=30,save='demo')

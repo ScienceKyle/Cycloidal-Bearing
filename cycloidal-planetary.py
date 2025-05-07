@@ -1,14 +1,12 @@
 from stl import mesh
 import numpy as np
 import matplotlib
-matplotlib.use('Agg')  # Use headless backend
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from scipy.interpolate import splprep, splev, interp1d
+from scipy.interpolate import interp1d
 from types import SimpleNamespace
-from matplotlib.animation import FuncAnimation
-from scipy.ndimage import uniform_filter1d
 
-detail = 1 #higher = more facets
+detail = 10 #higher = more facets
 
 def generate_cycloid(N=10,base_r=.5, hypo_ratio=1):
   epi_circle = np.linspace(-np.pi, np.pi, 720,endpoint=False)
@@ -66,16 +64,19 @@ def cart(r, theta):
 def polar(x, y):
     return np.sqrt(x**2 + y**2), np.arctan2(y, x)
 
-def generate_helix(gear, height=1, theta_scale=(np.pi/4), radius=None,reverse=False):
+
+def generate_helix(gear, height=1, helix=np.radians(35), radius=None,reverse=False):
     profile = np.column_stack((gear.x, gear.y))
     n_layers = (detail+2)*10+1
     dz = height / (n_layers - 1)
 
     # Generate helical layers
     layers = []
-    thetas = np.linspace(-np.pi/2, np.pi/2, n_layers)
+    k = 8
+    thetas = 2 * helix  * np.log(np.cosh(k * np.linspace(-1, 1, n_layers))) / k
+
     for i in range(n_layers):
-        th = theta_scale * np.cos(thetas[i])
+        th = thetas[i]
         transformed = np.column_stack((
             profile[:, 0]*np.cos(th) - profile[:, 1]*np.sin(th),
             profile[:, 0]*np.sin(th) + profile[:, 1]*np.cos(th)
@@ -172,6 +173,7 @@ def save_stl(filename, vertices, faces):
         for j in range(3):
             stl_mesh.vectors[i][j] = vertices[f[j], :]
     stl_mesh.save(filename)
+    print(f"saved {filename}")
 
 def generate_conj(planet, ratio, internal=False,clearance=.005):
     base_r = planet.r
@@ -226,14 +228,14 @@ def generate_conj(planet, ratio, internal=False,clearance=.005):
     return SimpleNamespace(
         x=x, y=y, r=r)
  
-def generate_plantery(id=2,od=4,height=.75,helix=25,save='cycloid_bearing'):
+def generate_plantery(id=2.5,od=4,height=.75,helix=30,save='cycloid_bearing'):
   
   N_p = 8
   N_r = 44
   N_s = 28
   num_p = 12
   best_r = 1/3
-  gap = .75*(od-id)/2
+  gap = .8*(od-id)/2
   orbit_r = (od+id)/4
   orbit_D = 2*np.pi*orbit_r
   thresh = .001
@@ -241,7 +243,7 @@ def generate_plantery(id=2,od=4,height=.75,helix=25,save='cycloid_bearing'):
   possible_base_r = np.linspace(gap/2,gap/4,10000)
   
   for r in possible_base_r:
-    for N_p in [6,7,5,8]:
+    for N_p in [6,5,7,8]:
       N_r_exact = N_p * (orbit_r + r) / r
       N_s_exact = N_p * (orbit_r - r) / r
       loop_N_r = round(N_r_exact)
@@ -268,8 +270,14 @@ def generate_plantery(id=2,od=4,height=.75,helix=25,save='cycloid_bearing'):
       break
     if flag:
       break
+    
+  if not flag:
+    print("No solutions")
+    return
+    
   print(f'N_p={N_p},N_r={N_r},N_s={N_s},num={num_p},r={best_r}')
   
+    
   ring_rat = N_r/N_p
   sun_rat = N_s/N_p
   
@@ -287,7 +295,10 @@ def generate_plantery(id=2,od=4,height=.75,helix=25,save='cycloid_bearing'):
   all_vertices = []
   all_faces = []
   vertex_offset = 0
-    
+  save_stl('planet.stl', vertices_p, faces_p)
+  save_stl('sun.stl', vertices_s, faces_s)
+  save_stl('ring.stl', vertices_r, faces_r)
+  
   all_vertices.append(vertices_s)
   all_faces.append(faces_s)
   vertex_offset += vertices_s.shape[0]
@@ -306,12 +317,11 @@ def generate_plantery(id=2,od=4,height=.75,helix=25,save='cycloid_bearing'):
   combined_vertices = np.vstack(all_vertices)
   combined_faces = np.vstack(all_faces)
   save_stl(save+'.stl', combined_vertices, combined_faces)
+  
   fig,ax = plt.subplots(figsize=(12, 12))
   ax.set_aspect('equal')
   ax.plot(ring.x,ring.y)
   ax.plot(sun.x,sun.y)
-    
-   # planet_th = np.linspace(0,2*np.pi,20,endpoint=False)
 
   for th in planet_th:
     xp, yp = rot2(planet.x, planet.y, ring.r - planet.r, -th*ring_rat, th)
@@ -323,4 +333,4 @@ def generate_plantery(id=2,od=4,height=.75,helix=25,save='cycloid_bearing'):
     plt.savefig(save+'.png', dpi=300)
   return
     
-generate_plantery(id=2.5,od=4,height=.75,helix=35,save='demo')
+generate_plantery(id=2.5,od=4,height=.75,helix=30,save='demo')

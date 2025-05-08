@@ -72,8 +72,8 @@ def generate_helix(gear, height=1, helix=np.radians(35), radius=None,reverse=Fal
     # Generate helical layers
     layers = []
     k = 8
-    thetas = 2 * helix  * np.log(np.cosh(k * np.linspace(-1, 1, n_layers))) / k
-
+    #thetas = 2 * helix  * np.log(np.cosh(k * np.linspace(-1, 1, n_layers))) / k
+    thetas = .5 * helix  * (np.cos(np.linspace(0, 3*np.pi, n_layers)))
     for i in range(n_layers):
         th = thetas[i]
         transformed = np.column_stack((
@@ -186,7 +186,7 @@ def save_stl(filename, vertices, faces):
     stl_mesh.save(filename)
     print(f"saved {filename}")
 
-def generate_conj(planet, ratio, internal=False,clearance=.02):
+def generate_conj(planet, ratio, internal=False,clearance=.008):
     base_r = planet.r
     r = base_r * ratio
     circle = np.linspace(0, 2 * np.pi, 1080)
@@ -292,7 +292,7 @@ def generate_plantery(id=2.5,od=4,height=.75,helix=30,save='cycloid_bearing'):
   ring_rat = N_r/N_p
   sun_rat = N_s/N_p
   
-  planet = generate_cycloid(N_p,best_r,1.5)
+  planet = generate_cycloid(N_p,best_r,1)
   ring = generate_conj(planet,ring_rat,True)
   sun = generate_conj(planet,sun_rat,False)
   

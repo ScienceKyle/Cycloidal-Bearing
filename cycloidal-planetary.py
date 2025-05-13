@@ -7,36 +7,25 @@ from scipy.interpolate import interp1d
 from types import SimpleNamespace
 
 
-def generate_cycloid(N=10,base_r=.5, hypo_ratio=1):
-  epi_circle = np.linspace(-np.pi, np.pi, 720,endpoint=False)
-  hypo_circle = np.linspace(0, -2 * np.pi, 720,endpoint=False)
-  epi_r =base_r/(N*(1+hypo_ratio))
-  hypo_r = epi_r*hypo_ratio
-  xe,ye = rot(epi_r,0,epi_circle)
-  theta = np.linspace(0, 2*np.pi*epi_r/base_r, 720, endpoint=False)
-  xe,ye = rot(xe+base_r+epi_r,ye,theta)
-  
-  xh,yh = rot(hypo_r,0,hypo_circle)
-  theta = np.linspace(2*np.pi*epi_r/base_r,2*np.pi*epi_r/base_r+2*np.pi*hypo_r/base_r, 720, endpoint=False)
-  xh,yh = rot(xh+base_r-hypo_r,yh,theta)
-  profile_x = np.concatenate([xe, xh])
-  profile_y = np.concatenate([ye, yh])
-  x_smooth , y_smooth = smooth_path(profile_x,profile_y,int(360/N))
-  
-  x = []
-  y = []
-  theta = np.linspace(0, 2 * np.pi, N, endpoint=False)
-  for th in theta:
-    tmp_x, tmp_y = rot(x_smooth, y_smooth, th)
-    x.extend(tmp_x)
-    y.extend(tmp_y)
-  x = np.array(x)
-  y = np.array(y)
-  x_smooth , y_smooth = smooth_path(x,y,180)
-  return SimpleNamespace(
-        x=x, y=y, r=base_r,
-        N=N, h=epi_r+hypo_r
-    )
+def generate_cycloid(N=6, base_r=0.5, segments=360):
+    r = base_r / (2 * N)
+    th = np.linspace(0, np.pi/N, 360)
+    epi = (base_r + r)*np.column_stack([np.cos(th), np.sin(th)]) - r*np.column_stack([np.cos(th*(base_r + r)/r), np.sin(th*(base_r + r)/r)])
+    hyp = (base_r - r)*np.column_stack([np.cos(th + np.pi/N), np.sin(th + np.pi/N)]) + r*np.column_stack([np.cos((base_r - r)*(th + np.pi/N)/r), -np.sin((base_r - r)*(th + np.pi/N)/r)])
+    tooth = np.concatenate([epi, hyp])
+
+    phases = np.linspace(0, 2*np.pi, N, endpoint=False)
+    rot = lambda a: np.array([[np.cos(a), -np.sin(a)], [np.sin(a), np.cos(a)]])
+    points = np.concatenate([tooth @ rot(p).T for p in phases])
+
+    dist = np.r_[0, np.cumsum(np.linalg.norm(np.diff(points, axis=0), axis=1))]
+    uniform_s = np.linspace(0, dist[-1], segments + 1)
+    fx = interp1d(dist, points[:,0])
+    fy = interp1d(dist, points[:,1])
+    
+    return SimpleNamespace(
+        x=fx(uniform_s), y=fy(uniform_s), r=base_r, N=N, h=2*r
+      )
 
 def smooth_path(x,y,N=100):
   distances = np.sqrt(np.diff(x)**2 + np.diff(y)**2)
@@ -73,7 +62,7 @@ def generate_helix(gear, height=1, helix=np.radians(35), radius=None,reverse=Fal
     layers = []
     k = 8
     #thetas = 2 * helix  * np.log(np.cosh(k * np.linspace(-1, 1, n_layers))) / k
-    thetas = .5 * helix  * (np.cos(np.linspace(0, 3*np.pi, n_layers)))
+    thetas = .5 * helix  * (np.cos(np.linspace(0, 2*np.pi, n_layers)))
     for i in range(n_layers):
         th = thetas[i]
         transformed = np.column_stack((
@@ -186,7 +175,7 @@ def save_stl(filename, vertices, faces):
     stl_mesh.save(filename)
     print(f"saved {filename}")
 
-def generate_conj(planet, ratio, internal=False,clearance=.008):
+def generate_conj(planet, ratio, internal=False,clearance=.005):
     base_r = planet.r
     r = base_r * ratio
     circle = np.linspace(0, 2 * np.pi, 1080)
@@ -292,7 +281,7 @@ def generate_plantery(id=2.5,od=4,height=.75,helix=30,save='cycloid_bearing'):
   ring_rat = N_r/N_p
   sun_rat = N_s/N_p
   
-  planet = generate_cycloid(N_p,best_r,1)
+  planet = generate_cycloid(N_p,best_r,180)
   ring = generate_conj(planet,ring_rat,True)
   sun = generate_conj(planet,sun_rat,False)
   
@@ -344,4 +333,4 @@ def generate_plantery(id=2.5,od=4,height=.75,helix=30,save='cycloid_bearing'):
     plt.savefig(save+'.png', dpi=300)
   return
     
-generate_plantery(id=2,od=4,height=.75,helix=25,save='demo')
+generate_plantery(id=2,od=4,height=.75,helix=45,save='demo')
